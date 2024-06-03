@@ -1,6 +1,10 @@
 let settings = {
     host: "http://192.168.0.143:8000/",
-    debug: false
+    debug: false,
+    // DEV OPTIONS
+    // used for updating
+    gd_createString: 0xcd73ac, // Something like this --> FUN_00cd73ac(&local_20,"https://www.boomlings.com/database/getAccountURL.php",auStack_48);
+    cc_sharedApp: 0xacb35c, // cocos2d::CCApplication::sharedApplication();
 }
 
 console.log('\
@@ -10,16 +14,18 @@ console.log('\
  █    █ █   █  █   ▀▄ █▀▀▀▀  █   █    █     █     █▀▀▀▀  █        █    █   █   █    \n\
   ▀▄▄▄▀ ▀█▄██  █    ▀ ▀█▄▄▀  ▀█▄██  ▄▄█▄▄   █     ▀█▄▄▀  ▀█▄▄▀    ▀▄▄  ▀█▄█▀   █  \n\
                                                                                     \n\
-                                                             v.1.0     by strainxx\
+                                                             v.1.2     by strainxx\n\
+                        CHANGELOG:\n\
+                v1.2: I finnaly figgured out how to intercept browser urls!\
 ')
 
 let base = Process.findModuleByName('libcocos2dcpp.so').base;
 let malloc = new NativeFunction(Module.findExportByName('libcocos2dcpp.so', 'malloc'), 'pointer', ['int']);
 
 
-Interceptor.attach(base.add(0xccf99c), {
+Interceptor.attach(base.add(settings.gd_createString), {
     onEnter: function(args){
-        if(args[1].readCString().match(/boomlings/)){
+        if(args[1].readCString().match(/http/)){
             let orig = args[1].readCString() 
             if(settings.debug){
                 console.log(Date.now(),"Arg 1:", args[0])
@@ -31,9 +37,40 @@ Interceptor.attach(base.add(0xccf99c), {
             console.log("[+] Redirected", orig, "to", args[1].readCString());
             
         }
-        
-        // args[1] = createStringPtr("http://127.0.0.1:8000")
-        // console.log(Date.now(), "Patched Arg 2:", args[1].readUtf8String())
+    }
+})
+
+// if (param_2) {
+//     plVar2 = (long *)cocos2d::CCApplication::sharedApplication();
+//     (**(code **)(*plVar2 + 0x60)) <--- 0x123( from here ) -^^ + 0x60
+//               (plVar2,"https://www.boomlings.com/database/accounts/accountManagement.php");
+// }
+// Fuck
+
+function doShitWithBrowserUrlReplacing(plVar2) {
+    const vtable = Memory.readPointer(plVar2);
+    const targetFunction = Memory.readPointer(vtable.add(0x60));
+    // console.log("Browser func:", targetFunction);
+    Interceptor.attach(targetFunction, {
+        onEnter: function (args) {
+            let origUrl = args[1].readUtf8String();
+            let redirected = origUrl.replace("https://www.boomlings.com/", settings.host);
+            if(settings.debug){
+                console.log(`AppsVtable::openBrowser(${plVar2}, "${origUrl}") called`);
+            }
+            console.log(`[+] Redirected openBrowser! ${origUrl} -> ${redirected}`);
+            args[1] = createStringPtr(redirected);
+        }
+    })
+}
+
+Interceptor.attach(base.add(settings.cc_sharedApp), {
+    onLeave: function(retval){
+        // if(settings.debug){
+        //     // console.log("cocos2d::CCApplication::sharedApplication() hit!")
+        //     // console.log("Vtable pointer (long *): ",retval)
+        // }
+        doShitWithBrowserUrlReplacing(retval)
     }
 })
 
