@@ -1,10 +1,11 @@
 let settings = {
     host: "http://192.168.0.143:8000/",
+    youtube_link: "https://www.youtube.com/@real1tysurf",
     debug: false,
     // DEV OPTIONS
     // used for updating
-    gd_createString: 0xcd73ac, // Something like this --> FUN_00cd73ac(&local_20,"https://www.boomlings.com/database/getAccountURL.php",auStack_48);
-    cc_sharedApp: 0xacb35c, // cocos2d::CCApplication::sharedApplication();
+    gd_createString: 0xCEA7DC, // Something like this --> FUN_00cd73ac(&local_20,"https://www.boomlings.com/database/getAccountURL.php",auStack_48);
+    cc_sharedApp: 0xADF78C, // cocos2d::CCApplication::sharedApplication();
 }
 
 console.log('\
@@ -55,6 +56,7 @@ function doShitWithBrowserUrlReplacing(plVar2) {
         onEnter: function (args) {
             let origUrl = args[1].readUtf8String();
             let redirected = origUrl.replace("https://www.boomlings.com/", settings.host);
+            redirected = redirected.replace("https://www.youtube.com/user/RobTopGames", settings.youtube_link);
             if(settings.debug){
                 console.log(`AppsVtable::openBrowser(${plVar2}, "${origUrl}") called`);
             }
